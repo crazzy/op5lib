@@ -1,4 +1,5 @@
-from urllib import quote
+from __future__ import print_function
+from six.moves.urllib.parse import quote
 import requests #pip install requests
 import json
 
@@ -99,14 +100,14 @@ class OP5(object):
         fname = sys._getframe().f_code.co_name
         if not self.modified and not force:
             if self.debug:
-                print colored("%s(): Not attempting commit since nothing has been modified" % fname, "yellow")
+                print(colored("%s(): Not attempting commit since nothing has been modified" % fname, "yellow"))
             return False
 
         self.get_changes()
         if len(self.data) > 0: #there are changes to commit
             return self.operation("POST","change")
         else:
-            print colored("%s(): Not attempting commit since nothing has been modified on the server" % fname, "red")
+            print(colored("%s(): Not attempting commit since nothing has been modified on the server" % fname, "red"))
             return False
 
     def get_group_members(self,object_type,group_name):
@@ -118,7 +119,7 @@ class OP5(object):
                 return []
         else:
             fname = sys._getframe().f_code.co_name
-            print colored("%s(): object_type '%s' is not valid" % (fname,object_type), "red")
+            print(colored("%s(): object_type '%s' is not valid" % (fname,object_type), "red"))
             return False
 
     def sync(self,object_type,name,data_at_source):
@@ -129,9 +130,9 @@ class OP5(object):
                     or (type(data_at_destination[key]) is list and set(data_at_source[key]) != set(data_at_destination[key])) # if there is at least one diff, using set() diffs here since order is not important
                     or data_at_source[key] != data_at_destination[key]):
                     if self.debug:
-                        print "Data at source:",data_at_source
-                        print "Data at destination:",data_at_destination
-                    print key,":",data_at_source[key],"did not match", key,":",data_at_destination.get(key,None),"! Making an update request."
+                        print("Data at source:",data_at_source)
+                        print("Data at destination:",data_at_destination)
+                    print(key,":",data_at_source[key],"did not match", key,":",data_at_destination.get(key,None),"! Making an update request.")
                     return self.update(object_type,name,data_at_source) #send an update request
         else:
             return self.create(object_type,data_at_source)
@@ -171,14 +172,14 @@ class OP5(object):
                     break
 
         if not validation_passed:
-            print colored("%s(%s): All required properties for a %s object not set in data! data: %s" % (request_type, object_type, object_type, str(data)), "red")
+            print(colored("%s(%s): All required properties for a %s object not set in data! data: %s" % (request_type, object_type, object_type, str(data)), "red"))
             return False
 
         return True
 
     def validate_request(self,request_type,object_type,name,data):
         if request_type not in ["GET","POST","PATCH","PUT","DELETE"]:
-            print colored("%s(%s): Invalid request type! name:'%s' data: %s" % (request_type, object_type, name, str(data) ), "red")
+            print(colored("%s(%s): Invalid request type! name:'%s' data: %s" % (request_type, object_type, name, str(data) ), "red"))
             return False
 
         if object_type != "change":
@@ -186,17 +187,17 @@ class OP5(object):
                                   "contact_template","hostdependency","servicedependency","hostescalation","serviceescalation","user","usergroup",
                                   "combined_graph","graph_collection","graph_template","management_pack","timeperiod","command"]
             if object_type not in valid_object_types:
-                print colored("%s(%s): Invalid object type! name:'%s' data: %s" % (request_type, object_type, name, str(data) ), "red")
+                print(colored("%s(%s): Invalid object type! name:'%s' data: %s" % (request_type, object_type, name, str(data) ), "red"))
                 return False
 
             if request_type in ["POST","PATCH","PUT"] and not data:
-                print colored("%s(%s): data not set! data: %s" % (request_type, object_type, str(data) ), "red")
+                print(colored("%s(%s): data not set! data: %s" % (request_type, object_type, str(data) ), "red"))
                 return False
             if request_type in ["PATCH","PUT","DELETE"] and name == "": #GET can have an empty name
-                print colored("%s(%s): name not set! data: %s" % (request_type, object_type, str(data) ), "red")
+                print(colored("%s(%s): name not set! data: %s" % (request_type, object_type, str(data) ), "red"))
                 return False
             if request_type != "POST" and object_type == "service" and name != "" and name.count(";") == 0:
-                print colored("%s(%s): Invalid service name! name:'%s' data: %s" % (request_type, object_type, name, str(data) ), "red")
+                print(colored("%s(%s): Invalid service name! name:'%s' data: %s" % (request_type, object_type, name, str(data) ), "red"))
                 return False
             if request_type == "POST":
                 # Return False if False, otherwise continue
@@ -211,7 +212,7 @@ class OP5(object):
         if self.debug or self.dryrun:
             text = "POST" + " " + url
             text += " Sent data: " + str(data)
-            print text
+            print(text)
         if self.dryrun:
             return False
 
@@ -225,16 +226,16 @@ class OP5(object):
             return False
 
         if self.debug:
-            print r.status_code
-            print r.text
-            print r.headers
+            print(r.status_code)
+            print(r.text)
+            print(r.headers)
 
         try:
             self.data = json.loads(r.text)
         except ValueError as e:
             self.data = r.text
             if r.status_code == 509:
-              print colored("ERROR: OP5 internal sanity protections activated. Please wait for a while and try again..","red")
+              print(colored("ERROR: OP5 internal sanity protections activated. Please wait for a while and try again..","red"))
               return
             if r.headers["content-type"].find("text/html") != -1:
                 raise e
@@ -242,8 +243,8 @@ class OP5(object):
 
         if r.status_code != 200: #200 OK
             #e.g. 400 Bad request (e.g. required fields not set), 409 Conflict (e.g. something prevents it), 401 Unauthorized, 403 Forbidden, 404 Not Found, 405 Method Not Allowed
-            print colored("POST(command/%s): got HTTP Status Code %d %s. Sent data: %s" % (command_type, r.status_code, r.reason, str(data)), "red")
-            print colored("POST(command/%s): got HTTP Response: %s" % (command_type, r.text), "red")
+            print(colored("POST(command/%s): got HTTP Status Code %d %s. Sent data: %s" % (command_type, r.status_code, r.reason, str(data)), "red"))
+            print(colored("POST(command/%s): got HTTP Response: %s" % (command_type, r.text), "red"))
             if self.logtofile:
                 logger.error("POST(command/%s): got HTTP Status Code %d %s. Sent data: %s" % (command_type, r.status_code, r.reason, str(data)))
                 logger.error("POST(command/%s): got HTTP Response: %s" % (command_type, r.text))
@@ -251,7 +252,7 @@ class OP5(object):
             return False
 
         if not self.interactive: #in interactive mode, skip the status text for successful requests, so that the JSON output can easily be piped into another command
-            print colored("POST(command/%s): Sent data: '%s'" % (command_type, str(data)), "green")
+            print(colored("POST(command/%s): Sent data: '%s'" % (command_type, str(data)), "green"))
         if self.logtofile:
             logger.info("POST(command/%s): Sent data: '%s'" % (command_type, str(data)))
         return True
@@ -264,7 +265,7 @@ class OP5(object):
         if self.debug or self.dryrun:
             text = "GET" + " " + url
             text += " Query string: '" + str(query) + "'"
-            print text
+            print(text)
         if self.dryrun:
             return False
 
@@ -278,16 +279,16 @@ class OP5(object):
             return False
 
         if self.debug:
-            print r.status_code
-            print r.text
-            print r.headers
+            print(r.status_code)
+            print(r.text)
+            print(r.headers)
 
         try:
             self.data = json.loads(r.text)
         except ValueError as e:
             self.data = r.text
             if r.status_code == 509:
-              print colored("ERROR: OP5 internal sanity protections activated. Please wait for a while and try again..","red")
+              print(colored("ERROR: OP5 internal sanity protections activated. Please wait for a while and try again..","red"))
               return
             #GET can return HTTP 200 OK with "index mismatch", but in any other non-success scenario, we should be receiving JSON, and not HTML
             if r.text.find("index mismatch") != -1 or (r.status_code not in [200,201] and r.headers["content-type"].find("text/html") != -1):
@@ -296,8 +297,8 @@ class OP5(object):
 
         if r.status_code != 200: #200 OK
             #e.g. 400 Bad request (e.g. required fields not set), 409 Conflict (e.g. something prevents it), 401 Unauthorized, 403 Forbidden, 404 Not Found, 405 Method Not Allowed
-            print colored("GET(%s): got HTTP Status Code %d %s. Query string: %s" % (api_type, r.status_code, r.reason, query), "red")
-            print colored("GET(%s): got HTTP Response: %s" % (api_type, r.text), "red")
+            print(colored("GET(%s): got HTTP Status Code %d %s. Query string: %s" % (api_type, r.status_code, r.reason, query), "red"))
+            print(colored("GET(%s): got HTTP Response: %s" % (api_type, r.text), "red"))
             if self.logtofile:
                 logger.error("GET(%s): got HTTP Status Code %d %s. Query string: %s" % (api_type, r.status_code, r.reason, query))
                 logger.error("GET(%s): got HTTP Response: %s" % (api_type, r.text))
@@ -305,7 +306,7 @@ class OP5(object):
             return False
 
         if not self.interactive: #in interactive mode, skip the status text for successful requests, so that the JSON output can easily be piped into another command
-            print colored("GET(%s): Query string: '%s'" % (api_type, query), "green")
+            print(colored("GET(%s): Query string: '%s'" % (api_type, query), "green"))
         if self.logtofile:
             logger.info("GET(%s): Query string: '%s'" % (api_type, query))
         return True
@@ -327,7 +328,7 @@ class OP5(object):
 
         # a little extra code here to fix the service name when referring to a hostgroup in the URL
         if (request_type in ["PATCH","PUT","DELETE"] or (request_type == "GET" and name != "")) and object_type == "service" and self.debug:
-            print "INFO: Checking if the given name is a hostgroup first."
+            print("INFO: Checking if the given name is a hostgroup first.")
             if self.read("hostgroup",name.split(";")[0]):
                 name += "?parent_type=hostgroup"
 
@@ -338,9 +339,9 @@ class OP5(object):
             text = request_type + " " + url
             if data:
                 text += " Sent data: " + str(data)
-            print text
+            print(text)
         if self.dryrun and request_type != "GET":
-            print colored("DRYRUN: "+self.get_debug_text(request_type,object_type,name,data), "yellow")
+            print(colored("DRYRUN: "+self.get_debug_text(request_type,object_type,name,data), "yellow"))
             return False
 
         http_headers={'content-type': 'application/json'}
@@ -353,9 +354,9 @@ class OP5(object):
             return False
 
         if self.debug:
-            print r.status_code
-            print r.text
-            print r.headers
+            print(r.status_code)
+            print(r.text)
+            print(r.headers)
 
         try:
             self.data = json.loads(r.text)
@@ -364,7 +365,7 @@ class OP5(object):
             if r.status_code == 509:
               rdepth+=1
               if rdepth < self.max_retries:
-                  print colored("ERROR: OP5 internal sanity protections activated. Waiting for a while before trying again..","red")
+                  print(colored("ERROR: OP5 internal sanity protections activated. Waiting for a while before trying again..","red"))
                   time.sleep(self.retry_wait)
                   return self.operation(request_type,object_type,name,data,rdepth)
               else:
@@ -377,8 +378,8 @@ class OP5(object):
         # Do some extra logging in failure cases. #except the 500 Internal Errors
         if r.status_code != 200 and r.status_code != 201 and r.status_code != 500: #200 OK, 201 Created, 500 Internal Error
             #e.g. 400 Bad request (e.g. required fields not set), 409 Conflict (e.g. something prevents it), 401 Unauthorized, 403 Forbidden, 404 Not Found, 405 Method Not Allowed
-            print colored("%s(%s): got HTTP Status Code %d %s. Name: '%s'. Sent data: %s" % (request_type, object_type, r.status_code, r.reason, name, str(data)), "red")
-            print colored("%s(%s): got HTTP Response: %s" % (request_type, object_type, r.text), "red")
+            print(colored("%s(%s): got HTTP Status Code %d %s. Name: '%s'. Sent data: %s" % (request_type, object_type, r.status_code, r.reason, name, str(data)), "red"))
+            print(colored("%s(%s): got HTTP Response: %s" % (request_type, object_type, r.text), "red"))
             if self.logtofile:
                 logger.error("%s(%s): got HTTP Status Code %d %s. Name: '%s'. Sent data: %s" % (request_type, object_type, r.status_code, r.reason, name, str(data)) )
                 logger.error("%s(%s): got HTTP Response: %s" % (request_type, object_type, r.text) )
@@ -399,7 +400,7 @@ class OP5(object):
 
         #debug/status text
         if not self.interactive: #in interactive mode, skip the status text for successful requests, so that the JSON output can easily be piped into another command
-            print colored(self.get_debug_text(request_type,object_type,name,data), "green")
+            print(colored(self.get_debug_text(request_type,object_type,name,data), "green"))
         #log (successful) changes
         if request_type != "GET" and self.logtofile:
             logger.info(self.get_debug_text(request_type,object_type,name,data))
